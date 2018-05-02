@@ -1,0 +1,813 @@
+<!DOCTYPE html>
+
+
+
+  
+
+
+<html class="theme-next mist use-motion" lang="zh-CN">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2"/>
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=6.1.0" rel="stylesheet" type="text/css" />
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=6.1.0">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=6.1.0">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=6.1.0">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=6.1.0" color="#222">
+
+
+
+
+
+
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Mist',
+    version: '6.1.0',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: false,
+    fastclick: false,
+    lazyload: false,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+  
+
+
+
+
+  <meta name="description" content="研究对象：一个小例子我将 Retrofit 源码 samples 模块中的 SimpleService 这个小例子稍作修改，取名为 SimplerService ，以更基本的形式展示一下 Retrofit 的典型使用方式，然后以 SimplerService 为研究对象对 Retrofit 源码做一下探究。">
+<meta name="keywords" content="Android,Retrofit,源码解析">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Retrofit 源码解析第一部分：请求流程解析">
+<meta property="og:url" content="https://blog.niniliwei.com/2018/05/02/retrofit-souce-code-analysis-part1/index.html">
+<meta property="og:site_name" content="niniliwei&#39;s blog">
+<meta property="og:description" content="研究对象：一个小例子我将 Retrofit 源码 samples 模块中的 SimpleService 这个小例子稍作修改，取名为 SimplerService ，以更基本的形式展示一下 Retrofit 的典型使用方式，然后以 SimplerService 为研究对象对 Retrofit 源码做一下探究。">
+<meta property="og:locale" content="zh-CN">
+<meta property="og:updated_time" content="2018-05-02T09:36:09.910Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Retrofit 源码解析第一部分：请求流程解析">
+<meta name="twitter:description" content="研究对象：一个小例子我将 Retrofit 源码 samples 模块中的 SimpleService 这个小例子稍作修改，取名为 SimplerService ，以更基本的形式展示一下 Retrofit 的典型使用方式，然后以 SimplerService 为研究对象对 Retrofit 源码做一下探究。">
+
+
+
+
+
+
+  <link rel="canonical" href="https://blog.niniliwei.com/2018/05/02/retrofit-souce-code-analysis-part1/"/>
+
+
+
+<script type="text/javascript" id="page.configurations">
+  CONFIG.page = {
+    sidebar: "",
+  };
+</script>
+
+  <title>Retrofit 源码解析第一部分：请求流程解析 | niniliwei's blog</title>
+  
+
+
+
+
+
+
+
+
+
+  <noscript>
+  <style type="text/css">
+    .use-motion .motion-element,
+    .use-motion .brand,
+    .use-motion .menu-item,
+    .sidebar-inner,
+    .use-motion .post-block,
+    .use-motion .pagination,
+    .use-motion .comments,
+    .use-motion .post-header,
+    .use-motion .post-body,
+    .use-motion .collection-title { opacity: initial; }
+
+    .use-motion .logo,
+    .use-motion .site-title,
+    .use-motion .site-subtitle {
+      opacity: initial;
+      top: initial;
+    }
+
+    .use-motion {
+      .logo-line-before i { left: initial; }
+      .logo-line-after i { right: initial; }
+    }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-CN">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"> 
+
+<div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/" class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">niniliwei's blog</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle"></p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button aria-label="切换导航栏">
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        
+          
+  
+  <li class="menu-item menu-item-home">
+    <a href="/" rel="section">
+      <i class="menu-item-icon fa fa-fw fa-home"></i> <br />首页</a>
+</li>
+
+      
+        
+        
+          
+  
+  <li class="menu-item menu-item-archives">
+    <a href="/archives/" rel="section">
+      <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />归档</a>
+</li>
+
+      
+
+      
+    </ul>
+  
+
+  
+    
+
+  
+
+  
+</nav>
+
+
+  
+
+
+
+ </div>
+    </header>
+
+    
+
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="https://blog.niniliwei.com/2018/05/02/retrofit-souce-code-analysis-part1/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="niniliwei">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="niniliwei's blog">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">Retrofit 源码解析第一部分：请求流程解析</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-05-02T17:30:00+00:00">2018-05-02</time>
+            
+
+            
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h2 id="研究对象：一个小例子"><a href="#研究对象：一个小例子" class="headerlink" title="研究对象：一个小例子"></a>研究对象：一个小例子</h2><p>我将 <code>Retrofit</code> 源码 <code>samples</code> 模块中的 <code>SimpleService</code> 这个小例子稍作修改，取名为 <code>SimplerService</code> ，以更基本的形式展示一下 <code>Retrofit</code> 的典型使用方式，然后以 <code>SimplerService</code> 为研究对象对 <code>Retrofit</code> 源码做一下探究。</p>
+<a id="more"></a>
+<h3 id="整体代码简单介绍"><a href="#整体代码简单介绍" class="headerlink" title="整体代码简单介绍"></a>整体代码简单介绍</h3><p><code>SimplerService</code> 整体代码如下 。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">final</span> <span class="class"><span class="keyword">class</span> <span class="title">SimplerService</span> </span>&#123;</span><br><span class="line">  <span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">final</span> String API_URL = <span class="string">"https://api.github.com"</span>;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">public</span> <span class="class"><span class="keyword">interface</span> <span class="title">GitHub</span> </span>&#123;</span><br><span class="line">    <span class="meta">@GET</span>(<span class="string">"/repos/&#123;owner&#125;/&#123;repo&#125;/contributors"</span>)</span><br><span class="line">    <span class="function">Call&lt;ResponseBody&gt; <span class="title">contributors</span><span class="params">(</span></span></span><br><span class="line"><span class="function"><span class="params">            @Path(<span class="string">"owner"</span>)</span> String owner,</span></span><br><span class="line"><span class="function">            @<span class="title">Path</span><span class="params">(<span class="string">"repo"</span>)</span> String repo)</span>;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="function"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title">main</span><span class="params">(String... args)</span> <span class="keyword">throws</span> IOException </span>&#123;</span><br><span class="line">    <span class="comment">// 创建一个很简单的 Retrofit 对象</span></span><br><span class="line">    Retrofit retrofit = <span class="keyword">new</span> Retrofit.Builder()</span><br><span class="line">        .baseUrl(API_URL)</span><br><span class="line">        .build();</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 创建 GitHub 接口的一个实例</span></span><br><span class="line">    GitHub github = retrofit.create(GitHub.class);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 创建一个查询 Retrofit 项目贡献者信息的请求对象</span></span><br><span class="line">    Call&lt;ResponseBody&gt; call = github.contributors(<span class="string">"square"</span>, <span class="string">"retrofit"</span>);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 发送请求得到响应对象</span></span><br><span class="line">    Response&lt;ResponseBody&gt; response = call.execute();</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 从响应对象中获取 ResponseBody 对象</span></span><br><span class="line">    ResponseBody body = response.body();</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 通过 ResponseBody 对象的相关方法获取具体的数据</span></span><br><span class="line">    String string = body.string();</span><br><span class="line">    System.out.println(string);</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>上面的代码使用 <code>Retrofit</code> 请求了 <a href="https://api.github.com/repos/square/retrofit/contributors" target="_blank" rel="noopener">https://api.github.com/repos/square/retrofit/contributors</a> 这个接口，并将返回结果进行打印。</p>
+<h3 id="代码逻辑拆分"><a href="#代码逻辑拆分" class="headerlink" title="代码逻辑拆分"></a>代码逻辑拆分</h3><p><code>SimplerService</code> 的整体代码可以拆分为下面几步：</p>
+<h4 id="1-定义用于发送-HTTP-请求的接口-GitHub"><a href="#1-定义用于发送-HTTP-请求的接口-GitHub" class="headerlink" title="1. 定义用于发送 HTTP 请求的接口 GitHub"></a>1. 定义用于发送 HTTP 请求的接口 <code>GitHub</code></h4><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">interface</span> <span class="title">GitHub</span> </span>&#123;</span><br><span class="line">  <span class="meta">@GET</span>(<span class="string">"/repos/&#123;owner&#125;/&#123;repo&#125;/contributors"</span>)</span><br><span class="line">  <span class="function">Call&lt;ResponseBody&gt; <span class="title">contributors</span><span class="params">(</span></span></span><br><span class="line"><span class="function"><span class="params">      @Path(<span class="string">"owner"</span>)</span> String owner,</span></span><br><span class="line"><span class="function">      @<span class="title">Path</span><span class="params">(<span class="string">"repo"</span>)</span> String repo)</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>通过该接口实例对象的方法调用将 HTTP 请求发送出去。</p>
+<h4 id="2-创建-Retrofit-对象"><a href="#2-创建-Retrofit-对象" class="headerlink" title="2. 创建 Retrofit 对象"></a><a name="step2">2. 创建 Retrofit 对象</a></h4><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">Retrofit retrofit = <span class="keyword">new</span> Retrofit.Builder()</span><br><span class="line">    .baseUrl(API_URL)</span><br><span class="line">    .build();</span><br></pre></td></tr></table></figure>
+<p>这个 <code>Retrofit</code> 对象很简单，只配置了 base url 。</p>
+<h4 id="3-创建-GitHub-接口的实例"><a href="#3-创建-GitHub-接口的实例" class="headerlink" title="3. 创建 GitHub 接口的实例"></a><a name="step3">3. 创建 GitHub 接口的实例</a></h4><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">GitHub github = retrofit.create(GitHub.class);</span><br></pre></td></tr></table></figure>
+<p>通过调用 <code>Retrofit#create(Class)</code> 方法实现。</p>
+<h4 id="4-调用-GitHub-接口方法获取请求-retrofit2-Call-对象"><a href="#4-调用-GitHub-接口方法获取请求-retrofit2-Call-对象" class="headerlink" title="4. 调用 GitHub 接口方法获取请求(retrofit2.Call)对象"></a><a name="step4">4. 调用 GitHub 接口方法获取请求(<code>retrofit2.Call</code>)对象</a></h4><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">Call&lt;ResponseBody&gt; call = github.contributors(<span class="string">"square"</span>, <span class="string">"retrofit"</span>);</span><br></pre></td></tr></table></figure>
+<h4 id="5-发送请求并获取响应对象"><a href="#5-发送请求并获取响应对象" class="headerlink" title="5. 发送请求并获取响应对象"></a><a name="step5">5. 发送请求并获取响应对象</a></h4><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">Response&lt;ResponseBody&gt; response = call.execute();</span><br></pre></td></tr></table></figure>
+<p>调用 <code>retrofit2.Call#execute()</code> 方法得到响应(<code>retrofit2.Response</code>)对象。</p>
+<h4 id="6-从响应对象中获取响应体-okhttp3-ResponseBody-对象"><a href="#6-从响应对象中获取响应体-okhttp3-ResponseBody-对象" class="headerlink" title="6. 从响应对象中获取响应体(okhttp3.ResponseBody)对象"></a>6. 从响应对象中获取响应体(<code>okhttp3.ResponseBody</code>)对象</h4><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">ResponseBody body = response.body();</span><br></pre></td></tr></table></figure>
+<p>调用 <code>retrofit2.Response#body()</code> 方法。</p>
+<h4 id="7-通过-okhttp3-ResponseBody-对象的相关方法获取具体数据"><a href="#7-通过-okhttp3-ResponseBody-对象的相关方法获取具体数据" class="headerlink" title="7. 通过 okhttp3.ResponseBody 对象的相关方法获取具体数据"></a>7. 通过 <code>okhttp3.ResponseBody</code> 对象的相关方法获取具体数据</h4><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 获取字节流</span></span><br><span class="line">InputStream inputStream = body.byteStream();</span><br><span class="line"><span class="comment">// 获取字符流</span></span><br><span class="line">Reader reader = body.charStream();</span><br><span class="line"><span class="comment">// 获取 Okio 的 BufferedSource 对象</span></span><br><span class="line">BufferedSource source = body.source();</span><br><span class="line"><span class="comment">// 获取字节数组</span></span><br><span class="line"><span class="keyword">byte</span>[] bytes = body.bytes();</span><br><span class="line"><span class="comment">// 获取字符串</span></span><br><span class="line">String string = body.string();</span><br></pre></td></tr></table></figure>
+<p>前三个是流的形式，后两个会把数据全部加载进内存。<strong>注意，每次请求只能调用上面的一个方法。</strong></p>
+<h2 id="请求发送流程分析"><a href="#请求发送流程分析" class="headerlink" title="请求发送流程分析"></a>请求发送流程分析</h2><p>在 <code>SimplerService</code> 中，<a href="#step5">第 5 步</a>的时候发送请求并得到响应对象。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">Response&lt;ResponseBody&gt; response = call.execute();</span><br></pre></td></tr></table></figure>
+<p>可以看出请求发送的逻辑应该发生在 <code>call.execute()</code> 方法中，而 <code>call</code> 是 <code>retrofit2.Call</code> 接口的实例，要想知道 <code>execute()</code> 方法中发生了什么，必须知道 <code>call</code> 对象对应具体的类是什么。而 <code>call</code> 对象又是在<a href="#step4">第 4 步</a>中通过 <code>github</code> 对象的方法调用得到的，<code>github</code> 对象是 <code>GitHub</code> 接口的实例，它是在<a href="#step3">第 3 步</a>通过 <code>retrofit</code> 对象创建的。</p>
+<p>按照上面的分析，一步一步看一下请求是怎么发送出去的。</p>
+<h3 id="1-GitHub-实例是什么"><a href="#1-GitHub-实例是什么" class="headerlink" title="1. GitHub 实例是什么"></a><a name="github_instance">1. <code>GitHub</code> 实例是什么</a></h3><p><code>Retrofit#create(Class)</code> 方法源码如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> &lt;T&gt; <span class="function">T <span class="title">create</span><span class="params">(<span class="keyword">final</span> Class&lt;T&gt; service)</span> </span>&#123;</span><br><span class="line">  Utils.validateServiceInterface(service);</span><br><span class="line">  <span class="keyword">if</span> (validateEagerly) &#123;</span><br><span class="line">    eagerlyValidateMethods(service);</span><br><span class="line">  &#125;</span><br><span class="line">  <span class="keyword">return</span> (T) Proxy.newProxyInstance(service.getClassLoader(), <span class="keyword">new</span> Class&lt;?&gt;[] &#123; service &#125;,</span><br><span class="line">      <span class="keyword">new</span> InvocationHandler() &#123;</span><br><span class="line">        <span class="keyword">private</span> <span class="keyword">final</span> Platform platform = Platform.get();</span><br><span class="line"></span><br><span class="line">        <span class="meta">@Override</span> <span class="function"><span class="keyword">public</span> Object <span class="title">invoke</span><span class="params">(Object proxy, Method method, @Nullable Object[] args)</span></span></span><br><span class="line"><span class="function">            <span class="keyword">throws</span> Throwable </span>&#123;</span><br><span class="line">          <span class="comment">// If the method is a method from Object then defer to normal invocation.</span></span><br><span class="line">          <span class="keyword">if</span> (method.getDeclaringClass() == Object.class) &#123;</span><br><span class="line">            <span class="keyword">return</span> method.invoke(<span class="keyword">this</span>, args);</span><br><span class="line">          &#125;</span><br><span class="line">          <span class="keyword">if</span> (platform.isDefaultMethod(method)) &#123;</span><br><span class="line">            <span class="keyword">return</span> platform.invokeDefaultMethod(method, service, proxy, args);</span><br><span class="line">          &#125;</span><br><span class="line">          ServiceMethod&lt;Object, Object&gt; serviceMethod =</span><br><span class="line">              (ServiceMethod&lt;Object, Object&gt;) loadServiceMethod(method);</span><br><span class="line">          OkHttpCall&lt;Object&gt; okHttpCall = <span class="keyword">new</span> OkHttpCall&lt;&gt;(serviceMethod, args);</span><br><span class="line">          <span class="keyword">return</span> serviceMethod.adapt(okHttpCall);</span><br><span class="line">        &#125;</span><br><span class="line">      &#125;);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>可以看到 <code>Retrofit.create(Class)</code> 方法返回了一个<strong>动态代理</strong>对象，在这里不对动态代理做深入探讨，我们只要知道<strong>被代理对象（即 <code>GitHub</code> 接口）</strong>的所有方法调用最终会走到代理对象 <code>InvocationHandler</code> 的 <code>invoke</code> 方法中就够了。</p>
+<p>所以，在这一步我们得到结论：<strong><code>GitHub</code> 实例其实是一个动态代理对象</strong>。</p>
+<h3 id="2-retrofit2-Call-实例是什么？"><a href="#2-retrofit2-Call-实例是什么？" class="headerlink" title="2. retrofit2.Call 实例是什么？"></a>2. <code>retrofit2.Call</code> 实例是什么？</h3><p>我们已经知道 <a href="#step4"><code>call</code> 对象是 <code>github.contributors(&quot;square&quot;, &quot;retrofit&quot;)</code> 的返回值</a>，而 <code>github</code> 是一个动态代理对象，它的方法调用会走到 <code>InvocationHandler#invoke()</code> 方法中，所以 <strong><code>call</code> 其实是 <code>invoke</code> 方法返回的</strong>。</p>
+<p>来看 <code>InvocationHandler#invoke()</code> 的源码：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">new</span> InvocationHandler() &#123;</span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">final</span> Platform platform = Platform.get();</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span> <span class="function"><span class="keyword">public</span> Object <span class="title">invoke</span><span class="params">(Object proxy, Method method, @Nullable Object[] args)</span></span></span><br><span class="line"><span class="function">        <span class="keyword">throws</span> Throwable </span>&#123;</span><br><span class="line">        <span class="comment">// 省略不重要的代码</span></span><br><span class="line">        ...</span><br><span class="line">        </span><br><span class="line">        ServiceMethod&lt;Object, Object&gt; serviceMethod =</span><br><span class="line">            (ServiceMethod&lt;Object, Object&gt;) loadServiceMethod(method);</span><br><span class="line">        OkHttpCall&lt;Object&gt; okHttpCall = <span class="keyword">new</span> OkHttpCall&lt;&gt;(serviceMethod, args);</span><br><span class="line">        <span class="keyword">return</span> serviceMethod.adapt(okHttpCall);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>可以看到 <code>InvocationHandler#invoke()</code> 方法的返回值是 <code>serviceMethod.adapt(okHttpCall)</code> ，所以，<strong><code>call</code> 其实是 <code>serviceMethod.adapt(okHttpCall)</code> 返回的</strong>。</p>
+<p>这里涉及到两个新的类，一个是 <code>ServiceMethod</code> ，一个是 <code>OkHttpCall</code>。</p>
+<h4 id="OkHttpCall-是什么？"><a href="#OkHttpCall-是什么？" class="headerlink" title="OkHttpCall 是什么？"></a><code>OkHttpCall</code> 是什么？</h4><p>先看一下 <code>OkHttpCall</code> 类的定义：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">final</span> <span class="class"><span class="keyword">class</span> <span class="title">OkHttpCall</span>&lt;<span class="title">T</span>&gt; <span class="keyword">implements</span> <span class="title">Call</span>&lt;<span class="title">T</span>&gt; </span>&#123;</span><br><span class="line">  ...</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>结论很简单，<strong>它是 <code>retrofit2.Call</code> 接口的实现类。</strong></p>
+<p>那 <a href="#step4"><code>call</code> 对象</a>是 <code>OkHttpCall</code> 的实例吗？在这里我们还不知道，因为在 <code>InvocationHandler#invoke()</code> 中不是将 <code>OkHttpCall</code> 对象直接返回的。</p>
+<h4 id="ServiceMethod-是什么？"><a href="#ServiceMethod-是什么？" class="headerlink" title="ServiceMethod 是什么？"></a><code>ServiceMethod</code> 是什么？</h4><p>再看看 <code>ServiceMethod</code> 这个类，其注释如下：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">/** Adapts an invocation of an interface method into an HTTP call. */</span><br></pre></td></tr></table></figure>
+<p>意思是<strong>“将接口方法的执行转换为一个 HTTP 请求（对象）”</strong>，<code>SimplerService</code> 中的 <code>GitHub</code> 就是这里所说的<strong>接口</strong>。</p>
+<p><a name="retrofit_loadservicemethod">这里的 <code>serviceMethod</code> 对象是通过 <code>Retrofit#loadServiceMethod(Method)</code> 获取的，其源码如下：</a></p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">ServiceMethod&lt;?, ?&gt; loadServiceMethod(Method method) &#123;</span><br><span class="line">  ServiceMethod&lt;?, ?&gt; result = serviceMethodCache.get(method);</span><br><span class="line">  <span class="keyword">if</span> (result != <span class="keyword">null</span>) <span class="keyword">return</span> result;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">synchronized</span> (serviceMethodCache) &#123;</span><br><span class="line">    result = serviceMethodCache.get(method);</span><br><span class="line">    <span class="keyword">if</span> (result == <span class="keyword">null</span>) &#123;</span><br><span class="line">      result = <span class="keyword">new</span> ServiceMethod.Builder&lt;&gt;(<span class="keyword">this</span>, method).build();</span><br><span class="line">      serviceMethodCache.put(method, result);</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">  <span class="keyword">return</span> result;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>可以看出 <code>serviceMethod</code> 是通过 <code>new ServiceMethod.Builder&lt;&gt;(this, method).build()</code> 创建的。</p>
+<h4 id="“转换”过程解析"><a href="#“转换”过程解析" class="headerlink" title="“转换”过程解析"></a>“转换”过程解析</h4><p>这个<strong>“转换”</strong>过程就发生在 <code>ServiceMethod#adapt(OkHttpCall)</code> 方法中。</p>
+<h5 id="serviceMethod-adapt-call"><a href="#serviceMethod-adapt-call" class="headerlink" title="serviceMethod.adapt(call)"></a><a name="servicemethod_adapt"><code>serviceMethod.adapt(call)</code></a></h5><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="function">T <span class="title">adapt</span><span class="params">(Call&lt;R&gt; call)</span> </span>&#123;</span><br><span class="line">  <span class="keyword">return</span> callAdapter.adapt(call);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>看起来很简单，只有一行代码，调用了 <code>callAdapter.adapt(call)</code> 方法。所以，“转换”过程其实发生在 <code>CallAdapter#adapt(Call)</code> 中。</p>
+<p><code>callAdapter</code> 是 <code>retrofit2.CallAdapter</code> 的实例对象，它的注释如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment"> * Adapts a &#123;<span class="doctag">@link</span> Call&#125; with response type &#123;<span class="doctag">@code</span> R&#125; into the type of &#123;<span class="doctag">@code</span> T&#125;. Instances are</span></span><br><span class="line"><span class="comment"> * created by &#123;<span class="doctag">@linkplain</span> Factory a factory&#125; which is</span></span><br><span class="line"><span class="comment"> * &#123;<span class="doctag">@linkplain</span> Retrofit.Builder#addCallAdapterFactory(Factory) installed&#125; into the &#123;<span class="doctag">@link</span> Retrofit&#125;</span></span><br><span class="line"><span class="comment"> * instance.</span></span><br><span class="line"><span class="comment"> */</span></span><br></pre></td></tr></table></figure>
+<p>这个类的作用是将 <code>retrofit2.Call&lt;R&gt;</code> 转换成 <code>T</code> ，它的实例是由它的工厂类（<code>CallAdapter.Factory</code>）创建的（<a name="calladapter_creation"><em>通过 <code>CallAdapter.Factory#get(Type, Annotaion[], Retrofit)</code> 方法</em></a>），而其工厂类对象是通过 <code>Retrofit.Builder#addCallAdapterFactory(Factory)</code> “安装”到 <code>Retrofit</code> 对象中的。</p>
+<p>但在 <code>SimplerService</code> 中<a href="#step2">创建 <code>Retrofit</code> 对象</a>的时候并没有调用 <code>Retrofit.Builder#addCallAdapterFactory(Factory)</code> 方法，那这里的 <code>callAdapter</code> 是什么？</p>
+<h5 id="serviceMethod-的-callAdapter-是什么？"><a href="#serviceMethod-的-callAdapter-是什么？" class="headerlink" title="serviceMethod 的 callAdapter 是什么？"></a><a name="servicemethod_calladapter"><code>serviceMethod</code> 的 <code>callAdapter</code> 是什么？</a></h5><p><code>callAdapter</code> 是 <code>ServcieMethod</code> 对象的成员变量，它是在 <code>ServiceMethod</code> 的构造方法中被赋值的 。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">ServiceMethod(Builder&lt;R, T&gt; builder) &#123;</span><br><span class="line">  ...</span><br><span class="line">  <span class="keyword">this</span>.callAdapter = builder.callAdapter;</span><br><span class="line">  ...</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>而且 <code>ServiceMethod</code> 的构造方法是在 <code>ServiceMethod.Builder#build()</code> 中调用的。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">public</span> ServiceMethod <span class="title">build</span><span class="params">()</span> </span>&#123;</span><br><span class="line">  callAdapter = createCallAdapter();</span><br><span class="line">  ...</span><br><span class="line">  <span class="keyword">return</span> <span class="keyword">new</span> ServiceMethod&lt;&gt;(<span class="keyword">this</span>);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>由此可以看出 <code>ServiceMethod</code> 对象的 <code>callAdapter</code> 变量是由 <code>ServiceMethod.Builder</code> 对象的 <code>callAdapter</code> 赋值的，而 <code>ServiceMethod.Builder</code> 对象的 <code>callAdapter</code> 是由其 <code>createCallAdapter()</code> 方法创建的，该方法源码如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">private</span> CallAdapter&lt;T, R&gt; <span class="title">createCallAdapter</span><span class="params">()</span> </span>&#123;</span><br><span class="line">  Type returnType = method.getGenericReturnType();</span><br><span class="line">  ...</span><br><span class="line">  Annotation[] annotations = method.getAnnotations();</span><br><span class="line">  <span class="keyword">try</span> &#123;</span><br><span class="line">    <span class="comment">//noinspection unchecked</span></span><br><span class="line">    <span class="keyword">return</span> (CallAdapter&lt;T, R&gt;) retrofit.callAdapter(returnType, annotations);</span><br><span class="line">  &#125; <span class="keyword">catch</span> (RuntimeException e) &#123; <span class="comment">// Wide exception range because factories are user code.</span></span><br><span class="line">    <span class="keyword">throw</span> methodError(e, <span class="string">"Unable to create call adapter for %s"</span>, returnType);</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>可以看到 <code>ServiceMethod#Builder</code> 的 <code>callAdapter</code> 通过 <code>retrofit.callAdapter(returnType, annotations)</code> 获得， <code>retrofit</code> 是 <code>Retrofit</code> 实例对象，是<a href="#retrofit_loadservicemethod">通过 <code>ServiceMethod#Builder</code> 的构造参数传入</a>的。</p>
+<p>所以，<strong><code>serviceMethod</code> 的 <code>callAdapter</code> 是通过 <code>retrofit.callAdapter(returnType, annotations) 方法得到的。</code></strong></p>
+<h5 id="retrofit-callAdapter-returnType-annotations-解析"><a href="#retrofit-callAdapter-returnType-annotations-解析" class="headerlink" title="retrofit.callAdapter(returnType, annotations) 解析"></a><code>retrofit.callAdapter(returnType, annotations)</code> 解析</h5><p>其源码如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> CallAdapter&lt;?, ?&gt; callAdapter(Type returnType, Annotation[] annotations) &#123;</span><br><span class="line">  <span class="keyword">return</span> nextCallAdapter(<span class="keyword">null</span>, returnType, annotations);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> CallAdapter&lt;?, ?&gt; nextCallAdapter(<span class="meta">@Nullable</span> CallAdapter.Factory skipPast, Type returnType,</span><br><span class="line">    Annotation[] annotations) &#123;</span><br><span class="line">  checkNotNull(returnType, <span class="string">"returnType == null"</span>);</span><br><span class="line">  checkNotNull(annotations, <span class="string">"annotations == null"</span>);</span><br><span class="line"></span><br><span class="line">  <span class="keyword">int</span> start = callAdapterFactories.indexOf(skipPast) + <span class="number">1</span>;</span><br><span class="line">  <span class="keyword">for</span> (<span class="keyword">int</span> i = start, count = callAdapterFactories.size(); i &lt; count; i++) &#123;</span><br><span class="line">    CallAdapter&lt;?, ?&gt; adapter = callAdapterFactories.get(i).get(returnType, annotations, <span class="keyword">this</span>);</span><br><span class="line">    <span class="keyword">if</span> (adapter != <span class="keyword">null</span>) &#123;</span><br><span class="line">      <span class="keyword">return</span> adapter;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  ...</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p><code>callAdapterFactories</code> 是 <code>Retrofit</code> 对象的成员变量，它是一个 <code>CallAdapter.Factory</code> 列表，上面的代码对这个列表进行遍历并<a href="#calladapter_creation">通过每个 <code>CallAdapter.Factory</code> 对象创建对应的 <code>CallAdapter</code> 对象</a>，将第一个不为 <code>null</code> 的 <code>CallAdapter</code> 对象返回。</p>
+<h5 id="retrofit-的-callAdapterFactories-包含什么？"><a href="#retrofit-的-callAdapterFactories-包含什么？" class="headerlink" title="retrofit 的 callAdapterFactories 包含什么？"></a><code>retrofit</code> 的 <code>callAdapterFactories</code> 包含什么？</h5><p><code>callAdapterFactories</code> 是在 <code>Retrofit</code> 的构造方法中被赋值的。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">Retrofit(okhttp3.Call.Factory callFactory, HttpUrl baseUrl,</span><br><span class="line">    List&lt;Converter.Factory&gt; converterFactories, List&lt;CallAdapter.Factory&gt; callAdapterFactories,</span><br><span class="line">    <span class="meta">@Nullable</span> Executor callbackExecutor, <span class="keyword">boolean</span> validateEagerly) &#123;</span><br><span class="line">  ...</span><br><span class="line">  <span class="keyword">this</span>.callAdapterFactories = callAdapterFactories; <span class="comment">// Copy+unmodifiable at call site.</span></span><br><span class="line">  ...</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>而 <code>Retrofit</code> 的构造方法是在 <code>Retrofit.Builder#build()</code> 方法中被调用的。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">public</span> Retrofit <span class="title">build</span><span class="params">()</span> </span>&#123;</span><br><span class="line">  ...</span><br><span class="line"></span><br><span class="line">  <span class="comment">// Make a defensive copy of the adapters and add the default Call adapter.</span></span><br><span class="line">  List&lt;CallAdapter.Factory&gt; callAdapterFactories = <span class="keyword">new</span> ArrayList&lt;&gt;(<span class="keyword">this</span>.callAdapterFactories);</span><br><span class="line">  callAdapterFactories.add(platform.defaultCallAdapterFactory(callbackExecutor));</span><br><span class="line"></span><br><span class="line">  ...</span><br><span class="line"></span><br><span class="line">  <span class="keyword">return</span> <span class="keyword">new</span> Retrofit(callFactory, baseUrl, unmodifiableList(converterFactories),</span><br><span class="line">      unmodifiableList(callAdapterFactories), callbackExecutor, validateEagerly);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>在上面代码中，基于 <strong><code>Retrofit.Builder</code> 对象的 <code>callAdapterFactories</code></strong> 新建了一个 <code>ArrayList</code> 对象，然后将<strong>通过 <code>platform.defaultCallAdapterFactory(callbackExecutor)</code> 得到的 <code>CallAdapter.Factory</code> 对象</strong>也加入其中，这个新建的 <code>ArrayList</code> 对象被传给了 <code>Retrofit</code> 构造方法。</p>
+<h6 id="Retrofit-Builder-对象的-callAdapterFactories-包含什么？"><a href="#Retrofit-Builder-对象的-callAdapterFactories-包含什么？" class="headerlink" title="Retrofit.Builder 对象的 callAdapterFactories 包含什么？"></a><code>Retrofit.Builder</code> 对象的 <code>callAdapterFactories</code> 包含什么？</h6><p><code>Retrofit.Builder</code> 对象的 <code>callAdapterFactories</code> 变量创建时是一个空列表。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">private</span> <span class="keyword">final</span> List&lt;CallAdapter.Factory&gt; callAdapterFactories = <span class="keyword">new</span> ArrayList&lt;&gt;();</span><br></pre></td></tr></table></figure>
+<p>在调用 <code>Retrofit.Builder#addCallAdapterFactory(CallAdapter.Factory)</code> 方法时将作为参数传入的 <code>CallAdapter.Factory</code> 对象放入了 <code>callAdapterFactories</code> 中。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">public</span> Builder <span class="title">addCallAdapterFactory</span><span class="params">(CallAdapter.Factory factory)</span> </span>&#123;</span><br><span class="line">  callAdapterFactories.add(checkNotNull(factory, <span class="string">"factory == null"</span>));</span><br><span class="line">  <span class="keyword">return</span> <span class="keyword">this</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>已经知道，<code>SimplerService</code> 中 <a href="#step2"><code>Retrofit</code> 对象的创建</a>并没有调用 <code>Retrofit.Builder#addCallAdapterFactory(CallAdapter.Factory)</code> 方法，因此对于 <code>SimplerService</code> 来说 <code>Retrofit.Builder</code> 对象的 <code>callAdapterFactories</code> 是空的。</p>
+<h6 id="platform-defaultCallAdapterFactory-callbackExecutor-可以得到什么"><a href="#platform-defaultCallAdapterFactory-callbackExecutor-可以得到什么" class="headerlink" title="platform.defaultCallAdapterFactory(callbackExecutor) 可以得到什么"></a><code>platform.defaultCallAdapterFactory(callbackExecutor)</code> 可以得到什么</h6><p><code>platform</code> 是 <code>retrofit2.Platform</code> 类的实例，在 <code>Retrofit.Builder</code> 的构造方法被赋值。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">Builder(Platform platform) &#123;</span><br><span class="line">  <span class="keyword">this</span>.platform = platform;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="title">Builder</span><span class="params">()</span> </span>&#123;</span><br><span class="line">  <span class="keyword">this</span>(Platform.get());</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p><code>SimplerService</code> 中 <a href="#step2"><code>Retrofit</code> 对象的创建</a>调用的是 <code>Retrofit.Builder</code> 的无参构造方法，所以，<code>platform</code> 是通过 <code>Platform.get()</code> 得到的。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> Platform PLATFORM = findPlatform();</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">static</span> Platform <span class="title">get</span><span class="params">()</span> </span>&#123;</span><br><span class="line">  <span class="keyword">return</span> PLATFORM;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">private</span> <span class="keyword">static</span> Platform <span class="title">findPlatform</span><span class="params">()</span> </span>&#123;</span><br><span class="line">  <span class="keyword">try</span> &#123;</span><br><span class="line">    Class.forName(<span class="string">"android.os.Build"</span>);</span><br><span class="line">    <span class="keyword">if</span> (Build.VERSION.SDK_INT != <span class="number">0</span>) &#123;</span><br><span class="line">      <span class="keyword">return</span> <span class="keyword">new</span> Android();</span><br><span class="line">    &#125;</span><br><span class="line">  &#125; <span class="keyword">catch</span> (ClassNotFoundException ignored) &#123;</span><br><span class="line">  &#125;</span><br><span class="line">  <span class="keyword">try</span> &#123;</span><br><span class="line">    Class.forName(<span class="string">"java.util.Optional"</span>);</span><br><span class="line">    <span class="keyword">return</span> <span class="keyword">new</span> Java8();</span><br><span class="line">  &#125; <span class="keyword">catch</span> (ClassNotFoundException ignored) &#123;</span><br><span class="line">  &#125;</span><br><span class="line">  <span class="keyword">return</span> <span class="keyword">new</span> Platform();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>对于 Android 开发来说 <code>platform</code> 是 <code>Android</code> 类的实例。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">static</span> <span class="class"><span class="keyword">class</span> <span class="title">Android</span> <span class="keyword">extends</span> <span class="title">Platform</span> </span>&#123;</span><br><span class="line">  <span class="meta">@Override</span> <span class="function"><span class="keyword">public</span> Executor <span class="title">defaultCallbackExecutor</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    <span class="keyword">return</span> <span class="keyword">new</span> MainThreadExecutor();</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="meta">@Override</span> CallAdapter.<span class="function">Factory <span class="title">defaultCallAdapterFactory</span><span class="params">(@Nullable Executor callbackExecutor)</span> </span>&#123;</span><br><span class="line">    <span class="keyword">if</span> (callbackExecutor == <span class="keyword">null</span>) <span class="keyword">throw</span> <span class="keyword">new</span> AssertionError();</span><br><span class="line">    <span class="keyword">return</span> <span class="keyword">new</span> ExecutorCallAdapterFactory(callbackExecutor);</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">static</span> <span class="class"><span class="keyword">class</span> <span class="title">MainThreadExecutor</span> <span class="keyword">implements</span> <span class="title">Executor</span> </span>&#123;</span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">final</span> Handler handler = <span class="keyword">new</span> Handler(Looper.getMainLooper());</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span> <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">execute</span><span class="params">(Runnable r)</span> </span>&#123;</span><br><span class="line">      handler.post(r);</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>看它的 <code>defaultCallAdapterFactory</code> 方法可以得知，<strong><code>platform.defaultCallAdapterFactory(callbackExecutor)</code> 得到的是 <code>ExecutorCallAdapterFactory</code> 实例对象</strong>。</p>
+<h6 id="结论"><a href="#结论" class="headerlink" title="结论"></a>结论</h6><p>通过以上分析，可以知道，<strong><code>retrofit</code> 的 <code>callAdapterFactories</code> 只包含一个 <code>ExecutorCallAdapterFactory</code> 对象</strong>。</p>
+<h5 id="通过-ExecutorCallAdapterFactory-创建的-CallAdapter-对象是否为-null-？"><a href="#通过-ExecutorCallAdapterFactory-创建的-CallAdapter-对象是否为-null-？" class="headerlink" title="通过 ExecutorCallAdapterFactory 创建的 CallAdapter 对象是否为 null ？"></a>通过 <code>ExecutorCallAdapterFactory</code> 创建的 <code>CallAdapter</code> 对象是否为 <code>null</code> ？</h5><p><a name="executorcalladapterfactory"><code>ExecutorCallAdapterFactory</code> 源码如下：</a></p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">final</span> <span class="class"><span class="keyword">class</span> <span class="title">ExecutorCallAdapterFactory</span> <span class="keyword">extends</span> <span class="title">CallAdapter</span>.<span class="title">Factory</span> </span>&#123;</span><br><span class="line">  <span class="keyword">final</span> Executor callbackExecutor;</span><br><span class="line"></span><br><span class="line">  ExecutorCallAdapterFactory(Executor callbackExecutor) &#123;</span><br><span class="line">    <span class="keyword">this</span>.callbackExecutor = callbackExecutor;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="meta">@Override</span></span><br><span class="line">  <span class="keyword">public</span> CallAdapter&lt;?, ?&gt; get(Type returnType, Annotation[] annotations, Retrofit retrofit) &#123;</span><br><span class="line">    <span class="keyword">if</span> (getRawType(returnType) != Call.class) &#123;</span><br><span class="line">      <span class="keyword">return</span> <span class="keyword">null</span>;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">final</span> Type responseType = Utils.getCallResponseType(returnType);</span><br><span class="line">    <span class="keyword">return</span> <span class="keyword">new</span> CallAdapter&lt;Object, Call&lt;?&gt;&gt;() &#123;</span><br><span class="line">      <span class="meta">@Override</span> <span class="function"><span class="keyword">public</span> Type <span class="title">responseType</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        <span class="keyword">return</span> responseType;</span><br><span class="line">      &#125;</span><br><span class="line"></span><br><span class="line">      <span class="meta">@Override</span> <span class="function"><span class="keyword">public</span> Call&lt;Object&gt; <span class="title">adapt</span><span class="params">(Call&lt;Object&gt; call)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">return</span> <span class="keyword">new</span> ExecutorCallbackCall&lt;&gt;(callbackExecutor, call);</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  ...</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>看其 <code>get()</code> 方法的实现，返回值是否为 <code>null</code> 在于下面的判断条件：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">if</span> (getRawType(returnType) != Call.class) &#123;</span><br><span class="line">  <span class="keyword">return</span> <span class="keyword">null</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>如果 <code>returnType</code> 的 rawType 不是 <code>Call.class</code> 的话就返回 <code>null</code> ，否则的话就返回一个 <code>CallAdapter</code> 的匿名内部类。</p>
+<p>什么是 rawType ？举例说明，对于 <code>List&lt;String&gt;</code> 来说它的  rawType 是 <code>List</code> 。什么是 <code>returnType</code> ？<code>returnType</code> 是用于请求网络的接口方法的返回值类型。对于 <code>SimplerService</code> 来说，<code>GitHub#contributors()</code> 方法的返回值类型是 <code>Call&lt;ResponseBody&gt;</code> ，它的 rawType 是 <code>Call.class</code> ，符合条件。</p>
+<p>所以，<strong>对 <code>SimplerService</code> 来说， <code>ExecutorCallAdapterFactory</code> 创建的 <code>CallAdapter</code> 对象不为 <code>null</code>，并且是一个 <code>CallAdapter</code> 的匿名内部类</strong>。</p>
+<h5 id="serviceMethod-的-callAdapter-最终是什么？"><a href="#serviceMethod-的-callAdapter-最终是什么？" class="headerlink" title="serviceMethod 的 callAdapter 最终是什么？"></a><code>serviceMethod</code> 的 <code>callAdapter</code> 最终是什么？</h5><p>由以上的分析可以得出结论，<strong><code>serviceAdapter</code> 的 <code>callAdapter</code> 最终是通过 <code>ExecutorCallAdapterFactory</code> 工厂类得到的一个 <code>CallAdapter</code> 的匿名内部类</strong>。</p>
+<h5 id="所以，retrofit2-Call-实例是什么？"><a href="#所以，retrofit2-Call-实例是什么？" class="headerlink" title="所以，retrofit2.Call 实例是什么？"></a>所以，<code>retrofit2.Call</code> 实例是什么？</h5><p>我们已经知道 <code>serviceMethod</code> 的 <code>callAdapter</code> 是通过 <code>ExecutorCallAdapterFactory</code> 创建的一个 <code>CallAdapter</code> 匿名内部类，那<a href="#servicemethod_adapt">“转换”过程</a>其实是发生在这个匿名内部类的 <code>adapt()</code> 方法中，看其<a href="#executorcalladapterfactory">源码</a>可以知道，<strong><code>retrofit2.Call</code> 实例是一个 <code>ExecutorCallbackCall</code> 对象</strong>。</p>
+<h3 id="3-call-execute-方法中发生了什么"><a href="#3-call-execute-方法中发生了什么" class="headerlink" title="3. call.execute() 方法中发生了什么"></a>3. <code>call.execute()</code> 方法中发生了什么</h3><p>我们已经知道了 <code>call</code> 是 <code>ExecutorCallbackCall</code> 的实例，直接去看它的 <code>execute()</code> 方法。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@Override</span> <span class="function"><span class="keyword">public</span> Response&lt;T&gt; <span class="title">execute</span><span class="params">()</span> <span class="keyword">throws</span> IOException </span>&#123;</span><br><span class="line">  <span class="keyword">return</span> delegate.execute();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>调用了 <code>delegate.execute()</code> 方法，这个 <code>delegate</code> 是它的构造方法传进来的一个 <code>retrofit2.Call</code> 对象。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">ExecutorCallbackCall(Executor callbackExecutor, Call&lt;T&gt; delegate) &#123;</span><br><span class="line">  <span class="keyword">this</span>.callbackExecutor = callbackExecutor;</span><br><span class="line">  <span class="keyword">this</span>.delegate = delegate;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>那这个 <code>delegate</code> 到底是什么？先说结论，<strong><code>delegate</code> 就是在 <code>Retrofit#create(Class)</code> 方法返回的动态代理对象的 <code>InvocationHandler</code> 的 <code>invoke()</code> 方法中创建的 <code>OkHttpCall</code> 对象</strong>。分析如下：</p>
+<ul>
+<li><code>OkHttpCall</code> 对象创建之后传给了 <code>serviceMethod.adapt(okHttpCall)</code> 方法；</li>
+<li><code>serviceMethod.adapt(okHttpCall)</code> 方法中又将其传给了 <code>callAdapter.adapt(call)</code> 方法；</li>
+<li><code>callAdapter.adapt(call)</code> 方法中将其作为  <code>ExecutorCallbackCall</code> 构造函数的第二个进行了传递；</li>
+<li><code>ExecutorCallbackCall</code> 构造函数的第二个参数正是赋值给了 <code>ExecutorCallbackCall</code> 对象的 <code>delegate</code> 变量。</li>
+</ul>
+<p>接下来看 <code>OkHttpCall</code> 的 <code>execute()</code> 方法，其源码如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@Override</span> <span class="function"><span class="keyword">public</span> Response&lt;T&gt; <span class="title">execute</span><span class="params">()</span> <span class="keyword">throws</span> IOException </span>&#123;</span><br><span class="line">  okhttp3.Call call;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">synchronized</span> (<span class="keyword">this</span>) &#123;</span><br><span class="line">    ...</span><br><span class="line"></span><br><span class="line">    call = rawCall;</span><br><span class="line">    <span class="keyword">if</span> (call == <span class="keyword">null</span>) &#123;</span><br><span class="line">      <span class="keyword">try</span> &#123;</span><br><span class="line">        call = rawCall = createRawCall();</span><br><span class="line">      &#125; <span class="keyword">catch</span> (IOException | RuntimeException | Error e) &#123;</span><br><span class="line">        throwIfFatal(e); <span class="comment">//  Do not assign a fatal error to creationFailure.</span></span><br><span class="line">        creationFailure = e;</span><br><span class="line">        <span class="keyword">throw</span> e;</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  ...</span><br><span class="line"></span><br><span class="line">  <span class="keyword">return</span> parseResponse(call.execute());</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>这里的逻辑可以分为三步：</p>
+<ol>
+<li>通过 <code>createRawCall()</code> 方法创建一个 <code>okhttp3.Call</code> 对象；</li>
+<li>调用 <code>okhttp3.Call#execute()</code> 得到一个 <code>okhttp3.Response</code> 对象；</li>
+<li>将第2步得到的 <code>okhttp3.Response</code> 对象传入 <code>parseResponse(okhttp3.Response)</code> 方法中得到一个 <code>retrofit2.Response</code> 对象并返回。</li>
+</ol>
+<p>所以说，<strong><code>Retrofit</code> 其实最终是通过 <code>OkHttp</code> 进行网络请求的</strong>。</p>
+
+      
+    </div>
+
+    
+
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/Android/" rel="tag"># Android</a>
+          
+            <a href="/tags/Retrofit/" rel="tag"># Retrofit</a>
+          
+            <a href="/tags/源码解析/" rel="tag"># 源码解析</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">niniliwei</p>
+              <p class="site-description motion-element" itemprop="description"></p>
+          </div>
+
+          
+            <nav class="site-state motion-element">
+              
+                <div class="site-state-item site-state-posts">
+                
+                  <a href="/archives/">
+                
+                    <span class="site-state-item-count">1</span>
+                    <span class="site-state-item-name">日志</span>
+                  </a>
+                </div>
+              
+
+              
+
+              
+                
+                
+                <div class="site-state-item site-state-tags">
+                  
+                    
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                    <span class="site-state-item-count">3</span>
+                    <span class="site-state-item-name">标签</span>
+                  
+                </div>
+              
+            </nav>
+          
+
+          
+
+          
+
+          
+          
+
+          
+          
+
+          
+            
+          
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#研究对象：一个小例子"><span class="nav-number">1.</span> <span class="nav-text">研究对象：一个小例子</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#整体代码简单介绍"><span class="nav-number">1.1.</span> <span class="nav-text">整体代码简单介绍</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#代码逻辑拆分"><span class="nav-number">1.2.</span> <span class="nav-text">代码逻辑拆分</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#1-定义用于发送-HTTP-请求的接口-GitHub"><span class="nav-number">1.2.1.</span> <span class="nav-text">1. 定义用于发送 HTTP 请求的接口 GitHub</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#2-创建-Retrofit-对象"><span class="nav-number">1.2.2.</span> <span class="nav-text">2. 创建 Retrofit 对象</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#3-创建-GitHub-接口的实例"><span class="nav-number">1.2.3.</span> <span class="nav-text">3. 创建 GitHub 接口的实例</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#4-调用-GitHub-接口方法获取请求-retrofit2-Call-对象"><span class="nav-number">1.2.4.</span> <span class="nav-text">4. 调用 GitHub 接口方法获取请求(retrofit2.Call)对象</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#5-发送请求并获取响应对象"><span class="nav-number">1.2.5.</span> <span class="nav-text">5. 发送请求并获取响应对象</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#6-从响应对象中获取响应体-okhttp3-ResponseBody-对象"><span class="nav-number">1.2.6.</span> <span class="nav-text">6. 从响应对象中获取响应体(okhttp3.ResponseBody)对象</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#7-通过-okhttp3-ResponseBody-对象的相关方法获取具体数据"><span class="nav-number">1.2.7.</span> <span class="nav-text">7. 通过 okhttp3.ResponseBody 对象的相关方法获取具体数据</span></a></li></ol></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#请求发送流程分析"><span class="nav-number">2.</span> <span class="nav-text">请求发送流程分析</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#1-GitHub-实例是什么"><span class="nav-number">2.1.</span> <span class="nav-text">1. GitHub 实例是什么</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-retrofit2-Call-实例是什么？"><span class="nav-number">2.2.</span> <span class="nav-text">2. retrofit2.Call 实例是什么？</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#OkHttpCall-是什么？"><span class="nav-number">2.2.1.</span> <span class="nav-text">OkHttpCall 是什么？</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#ServiceMethod-是什么？"><span class="nav-number">2.2.2.</span> <span class="nav-text">ServiceMethod 是什么？</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#“转换”过程解析"><span class="nav-number">2.2.3.</span> <span class="nav-text">“转换”过程解析</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#serviceMethod-adapt-call"><span class="nav-number">2.2.3.1.</span> <span class="nav-text">serviceMethod.adapt(call)</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#serviceMethod-的-callAdapter-是什么？"><span class="nav-number">2.2.3.2.</span> <span class="nav-text">serviceMethod 的 callAdapter 是什么？</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#retrofit-callAdapter-returnType-annotations-解析"><span class="nav-number">2.2.3.3.</span> <span class="nav-text">retrofit.callAdapter(returnType, annotations) 解析</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#retrofit-的-callAdapterFactories-包含什么？"><span class="nav-number">2.2.3.4.</span> <span class="nav-text">retrofit 的 callAdapterFactories 包含什么？</span></a><ol class="nav-child"><li class="nav-item nav-level-6"><a class="nav-link" href="#Retrofit-Builder-对象的-callAdapterFactories-包含什么？"><span class="nav-number">2.2.3.4.1.</span> <span class="nav-text">Retrofit.Builder 对象的 callAdapterFactories 包含什么？</span></a></li><li class="nav-item nav-level-6"><a class="nav-link" href="#platform-defaultCallAdapterFactory-callbackExecutor-可以得到什么"><span class="nav-number">2.2.3.4.2.</span> <span class="nav-text">platform.defaultCallAdapterFactory(callbackExecutor) 可以得到什么</span></a></li><li class="nav-item nav-level-6"><a class="nav-link" href="#结论"><span class="nav-number">2.2.3.4.3.</span> <span class="nav-text">结论</span></a></li></ol></li><li class="nav-item nav-level-5"><a class="nav-link" href="#通过-ExecutorCallAdapterFactory-创建的-CallAdapter-对象是否为-null-？"><span class="nav-number">2.2.3.5.</span> <span class="nav-text">通过 ExecutorCallAdapterFactory 创建的 CallAdapter 对象是否为 null ？</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#serviceMethod-的-callAdapter-最终是什么？"><span class="nav-number">2.2.3.6.</span> <span class="nav-text">serviceMethod 的 callAdapter 最终是什么？</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#所以，retrofit2-Call-实例是什么？"><span class="nav-number">2.2.3.7.</span> <span class="nav-text">所以，retrofit2.Call 实例是什么？</span></a></li></ol></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-call-execute-方法中发生了什么"><span class="nav-number">2.3.</span> <span class="nav-text">3. call.execute() 方法中发生了什么</span></a></li></ol></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2018</span>
+  <span class="with-love" id="animate">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">niniliwei</span>
+
+  
+
+  
+</div>
+
+
+
+
+  <div class="powered-by">由 <a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a> 强力驱动 v3.7.1</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 &mdash; <a class="theme-link" target="_blank" href="https://github.com/theme-next/hexo-theme-next">NexT.Mist</a> v6.1.0</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=6.1.0"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=6.1.0"></script>
+
+
+
+  
+  
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=6.1.0"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=6.1.0"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=6.1.0"></script>
+
+
+
+  
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>

@@ -274,7 +274,7 @@
   
   
   <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="https://blog.niniliwei.com/2018/04/05/first-post/">
+    <link itemprop="mainEntityOfPage" href="https://blog.niniliwei.com/2018/05/02/retrofit-souce-code-analysis-part1/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="name" content="niniliwei">
@@ -293,7 +293,7 @@
         
           <h1 class="post-title" itemprop="name headline">
                 
-                <a class="post-title-link" href="/2018/04/05/first-post/" itemprop="url">我就是我</a></h1>
+                <a class="post-title-link" href="/2018/05/02/retrofit-souce-code-analysis-part1/" itemprop="url">Retrofit 源码解析第一部分：请求流程解析</a></h1>
         
 
         <div class="post-meta">
@@ -305,7 +305,7 @@
               
                 <span class="post-meta-item-text">发表于</span>
               
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-04-05T20:59:57+00:00">2018-04-05</time>
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-05-02T17:30:00+00:00">2018-05-02</time>
             
 
             
@@ -343,27 +343,14 @@
 
       
         
-          
-            <p>作曲：张国荣</p>
-<p>作词：林夕</p>
-<p>I am what I am</p>
-<p>我永远都爱这样的我</p>
-<p>快乐是 快乐的方式不止一种</p>
-<p>最荣幸是 谁都是造物者的光荣</p>
-<p>不用闪躲 为我喜欢的生活而活</p>
-<p>不用粉墨 就站在光明的角落</p>
-<p>我就是我 是颜色不一样的烟火</p>
-<p>天空开阔 要做最坚强的泡沫</p>
-<p>我喜欢我 让蔷薇开出一种结果</p>
-<p>孤独的沙漠里 一样盛放的赤裸裸</p>
-<p>多么高兴 在琉璃屋中快乐生活</p>
-<p>对世界说 什么是光明和磊落</p>
-<p>我就是我 是颜色不一样的烟火</p>
-<p>天空开阔 要做最坚强的泡沫</p>
-<p>我喜欢我 让蔷薇开出一种结果</p>
-<p>孤独的沙漠里 一样盛放的赤裸裸</p>
-
-          
+          <h2 id="研究对象：一个小例子"><a href="#研究对象：一个小例子" class="headerlink" title="研究对象：一个小例子"></a>研究对象：一个小例子</h2><p>我将 <code>Retrofit</code> 源码 <code>samples</code> 模块中的 <code>SimpleService</code> 这个小例子稍作修改，取名为 <code>SimplerService</code> ，以更基本的形式展示一下 <code>Retrofit</code> 的典型使用方式，然后以 <code>SimplerService</code> 为研究对象对 <code>Retrofit</code> 源码做一下探究。</p>
+          <!--noindex-->
+          <div class="post-button text-center">
+            <a class="btn" href="/2018/05/02/retrofit-souce-code-analysis-part1/#more" rel="contents">
+              阅读全文 &raquo;
+            </a>
+          </div>
+          <!--/noindex-->
         
       
     </div>
@@ -451,6 +438,23 @@
 
               
 
+              
+                
+                
+                <div class="site-state-item site-state-tags">
+                  
+                    
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                    <span class="site-state-item-count">3</span>
+                    <span class="site-state-item-name">标签</span>
+                  
+                </div>
               
             </nav>
           
